@@ -37,47 +37,6 @@ class myChatInterface(ChatInterface):
 
 with gr.Blocks() as demo:
 
-    # class thread_with_trace(threading.Thread):
-    #     # https://www.geeksforgeeks.org/python-different-ways-to-kill-a-thread/
-    #     # https://stackoverflow.com/questions/6893968/how-to-get-the-return-value-from-a-thread
-    #     def __init__(self, *args, **keywords):
-    #         threading.Thread.__init__(self, *args, **keywords)
-    #         self.killed = False
-    #         self._return = None
-
-    #     def start(self):
-    #         self.__run_backup = self.run
-    #         self.run = self.__run
-    #         threading.Thread.start(self)
-
-    #     def __run(self):
-    #         sys.settrace(self.globaltrace)
-    #         self.__run_backup()
-    #         self.run = self.__run_backup
-
-    #     def run(self):
-    #         if self._target is not None:
-    #             self._return = self._target(*self._args, **self._kwargs)
-
-    #     def globaltrace(self, frame, event, arg):
-    #         if event == "call":
-    #             return self.localtrace
-    #         else:
-    #             return None
-
-    #     def localtrace(self, frame, event, arg):
-    #         if self.killed:
-    #             if event == "line":
-    #                 raise SystemExit()
-    #         return self.localtrace
-
-    #     def kill(self):
-    #         self.killed = True
-
-    #     def join(self, timeout=0):
-    #         threading.Thread.join(self, timeout)
-    #         return self._return
-
     def _is_termination_msg(message):
         """Check if a message is a termination message.
         Terminate when no code block is detected. Currently only detect python code blocks.
@@ -150,18 +109,6 @@ with gr.Blocks() as demo:
             )
         return chat_history
 
-    def agent_history_to_chat(agent_history):
-        """Convert agent history to chat history."""
-        chat_history = []
-        for i in range(0, len(agent_history), 2):
-            chat_history.append(
-                [
-                    agent_history[i],
-                    agent_history[i + 1] if i + 1 < len(agent_history) else None,
-                ]
-            )
-        return chat_history
-
     def initiate_chat(config_list, user_message, chat_history):
         if LOG_LEVEL == "DEBUG":
             print(f"chat_history_init: {chat_history}")
@@ -183,15 +130,6 @@ with gr.Blocks() as demo:
             assistant.llm_config.update(llm_config)
             assistant.client = OpenAIWrapper(**assistant.llm_config)
 
-        if user_message.strip().lower().startswith("show file:"):
-            filename = user_message.strip().lower().replace("show file:", "").strip()
-            filepath = os.path.join("coding", filename)
-            if os.path.exists(filepath):
-                chat_history.append([user_message, (filepath,)])
-            else:
-                chat_history.append([user_message, f"File {filename} not found."])
-            return chat_history
-
         assistant.reset()
         oai_messages = chat_to_oai_message(chat_history)
         assistant._oai_system_message_origin = assistant._oai_system_message.copy()
@@ -204,7 +142,6 @@ with gr.Blocks() as demo:
 
         except Exception as e:
             # agent_history += [user_message, str(e)]
-            # chat_history[:] = agent_history_to_chat(agent_history)
             chat_history.append([user_message, str(e)])
 
         assistant._oai_system_message = assistant._oai_system_message_origin.copy()
@@ -213,29 +150,7 @@ with gr.Blocks() as demo:
             # print(f"agent_history: {agent_history}")
         return chat_history
 
-    # def chatbot_reply_thread(input_text, chat_history, config_list):
-    #     """Chat with the agent through terminal."""
-    #     thread = thread_with_trace(target=initiate_chat, args=(config_list, input_text, chat_history))
-    #     thread.start()
-    #     try:
-    #         messages = thread.join(timeout=TIMEOUT)
-    #         if thread.is_alive():
-    #             thread.kill()
-    #             thread.join()
-    #             messages = [
-    #                 input_text,
-    #                 "Timeout Error: Please check your API keys and try again later.",
-    #             ]
-    #     except Exception as e:
-    #         messages = [
-    #             [
-    #                 input_text,
-    #                 str(e) if len(str(e)) > 0 else "Invalid Request to OpenAI, please check your API keys.",
-    #             ]
-    #         ]
-    #     return messages
-
-    def chatbot_reply_plain(input_text, chat_history, config_list):
+    def chatbot_reply(input_text, chat_history, config_list):
         """Chat with the agent through terminal."""
         try:
             messages = initiate_chat(config_list, input_text, chat_history)
@@ -248,17 +163,11 @@ with gr.Blocks() as demo:
             ]
         return messages
 
-    def chatbot_reply(input_text, chat_history, config_list):
-        """Chat with the agent through terminal."""
-        return chatbot_reply_plain(input_text, chat_history, config_list)  # Use chatbot_reply_thread function for threading capabilities
-
     def get_description_text():
         return """
         # Microsoft AutoGen: Multi-Round Human Interaction Chatbot Demo
 
         This demo shows how to build a chatbot which can handle multi-round conversations with human interactions.
-
-        #### [AutoGen](https://github.com/microsoft/autogen) [Discord](https://discord.gg/pAbnFJrkgZ) [Paper](https://arxiv.org/abs/2308.08155) [SourceCode](https://github.com/thinkall/autogen-demos)
         """
 
     def update_config():
@@ -324,11 +233,11 @@ with gr.Blocks() as demo:
             ["what if the production of two numbers?"],
             [
                 "Plot a chart of the last year's stock prices of Microsoft, Google and Apple and save to stock_price.png."
-            ],
-            ["show file: stock_price.png"],
+            ]
         ],
     )
 
 
 if __name__ == "__main__":
+    demo.queue(default_concurrency_limit=5)
     demo.launch(share=True, server_name="0.0.0.0")
