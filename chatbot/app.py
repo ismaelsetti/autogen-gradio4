@@ -109,26 +109,9 @@ with gr.Blocks() as demo:
             )
         return chat_history
 
-    def initiate_chat(config_list, user_message, chat_history):
+    def initiate_chat(user_message, chat_history):
         if LOG_LEVEL == "DEBUG":
             print(f"chat_history_init: {chat_history}")
-
-        if len(config_list[0].get("api_key", "")) < 2:
-            chat_history.append(
-                [
-                    user_message,
-                    "Hi, nice to meet you! Please enter your API keys in below text boxs.",
-                ]
-            )
-            return chat_history
-        else:
-            llm_config = {
-                # "seed": 42,
-                "timeout": TIMEOUT,
-                "config_list": config_list,
-            }
-            assistant.llm_config.update(llm_config)
-            assistant.client = OpenAIWrapper(**assistant.llm_config)
 
         assistant.reset()
         oai_messages = chat_to_oai_message(chat_history)
@@ -150,10 +133,10 @@ with gr.Blocks() as demo:
             # print(f"agent_history: {agent_history}")
         return chat_history
 
-    def chatbot_reply(input_text, chat_history, config_list):
+    def chatbot_reply(input_text, chat_history):
         """Chat with the agent through terminal."""
         try:
-            messages = initiate_chat(config_list, input_text, chat_history)
+            messages = initiate_chat(input_text, chat_history)
         except Exception as e:
             messages = [
                 [
@@ -170,20 +153,8 @@ with gr.Blocks() as demo:
         This demo shows how to build a chatbot which can handle multi-round conversations with human interactions.
         """
 
-    def update_config():
-        config_list = [
-            {
-                "model": "llama3",
-                "base_url": "http://localhost:11434/v1",
-                "api_key": "ollama",
-            }
-        ]
-
-        return config_list
-
     def respond(message, chat_history):
-        config_list = update_config()
-        chat_history[:] = chatbot_reply(message, chat_history, config_list)
+        chat_history[:] = chatbot_reply(message, chat_history)
         if LOG_LEVEL == "DEBUG":
             print(f"return chat_history: {chat_history}")
         return ""

@@ -331,4 +331,5 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
+    demo.queue(default_concurrency_limit=5)
     demo.launch(share=True, server_name="0.0.0.0")
